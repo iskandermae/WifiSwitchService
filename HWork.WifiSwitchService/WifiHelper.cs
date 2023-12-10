@@ -1,67 +1,38 @@
-﻿using System;
-using Windows.UI.Xaml.Controls;
-using Windows.Devices.WiFi;
-using Windows.UI.Xaml;
-using Windows.UI.Xaml.Navigation;
-using SDKTemplate;
-using System.Collections.ObjectModel;
+﻿using Windows.Devices.WiFi;
 
 namespace HWork.WifiSwitchService {
 
     public sealed class WifiHelper {
-        private WiFiAdapter firstAdapter;
-        MainPage rootPage;
-        public ObservableCollection<WiFiNetworkDisplay> ResultCollection {
-            get;
-            private set;
-        }
 
-        public Scenario2_Scan() {
-            this.InitializeComponent();
-        }
+        public static async void Switch(string allowed) {
+            var allowedSSID = allowed.Trim().Split(';');
+            IReadOnlyList<WiFiAdapter>? adapters = await WiFiAdapter.FindAllAdaptersAsync();
+            if (adapters == null || adapters.Count == 0) {
+                return;
+            }
 
-        protected override async void OnNavigatedTo(NavigationEventArgs e) {
-            ResultCollection = new ObservableCollection<WiFiNetworkDisplay>();
-            rootPage = MainPage.Current;
+            byte strength = byte.MinValue;
+            WiFiAvailableNetwork? powerfulNetwork = null;
+            WiFiAdapter? powerfulAdapter = null;
 
-            // RequestAccessAsync must have been called at least once by the app before using the API
-            // Calling it multiple times is fine but not necessary
-            // RequestAccessAsync must be called from the UI thread
-            var access = await WiFiAdapter.RequestAccessAsync();
-            if (access != WiFiAccessStatus.Allowed) {
-                rootPage.NotifyUser("Access denied", NotifyType.ErrorMessage);
-            } else {
-                DataContext = this;
-
-                var result = await Windows.Devices.Enumeration.DeviceInformation.FindAllAsync(WiFiAdapter.GetDeviceSelector());
-                if (result.Count >= 1) {
-                    firstAdapter = await WiFiAdapter.FromIdAsync(result[0].Id);
-
-                    var button = new Button();
-                    button.Content = string.Format("Scan");
-                    button.Click += Button_Click;
-                    Buttons.Children.Add(button);
-                } else {
-                    rootPage.NotifyUser("No WiFi Adapters detected on this machine", NotifyType.ErrorMessage);
+            foreach (WiFiAdapter? adapter in adapters) {
+                foreach (WiFiAvailableNetwork? network in adapter.NetworkReport.AvailableNetworks) {
+                    if (network == null)
+                        continue;
+                    if (!allowedSSID.Contains(network.Ssid))
+                        continue;
+                    if (network.SignalBars <= strength) {
+                        continue;
+                    }
+                    strength = network.SignalBars;
+                    powerfulNetwork = network;
+                    powerfulAdapter = adapter;
                 }
             }
-        }
-
-        private async void Button_Click(object sender, RoutedEventArgs e) {
-            await firstAdapter.ScanAsync();
-            DisplayNetworkReport(firstAdapter.NetworkReport);
-        }
-
-        private async void DisplayNetworkReport(WiFiNetworkReport report) {
-            rootPage.NotifyUser(string.Format("Network Report Timestamp: {0}", report.Timestamp), NotifyType.StatusMessage);
-
-            ResultCollection.Clear();
-
-            foreach (var network in report.AvailableNetworks) {
-                var networkDisplay = new WiFiNetworkDisplay(network, firstAdapter);
-                await networkDisplay.UpdateConnectivityLevel();
-                ResultCollection.Add(networkDisplay);
+            if (powerfulNetwork == null || powerfulAdapter == null) {
+                return;
             }
+            await powerfulAdapter.ConnectAsync(powerfulNetwork, WiFiReconnectionKind.Automatic);
         }
     }
 }

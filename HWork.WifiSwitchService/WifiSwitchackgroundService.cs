@@ -1,3 +1,5 @@
+using Windows.Devices.WiFi;
+
 namespace HWork.WifiSwitchService;
 
 public class WifiSwitchackgroundService : BackgroundService
@@ -15,13 +17,23 @@ public class WifiSwitchackgroundService : BackgroundService
     {
         string? allowed = ConfigurationBinder.GetValue<string?>(_configuration, "allowedwifi");
         if (string.IsNullOrWhiteSpace(allowed)) {
-            _logger.LogError("allowedwifi is not set");
+            _logger.LogError("specify command line parameter: allowedwifi=name1;name2;name3");
             Environment.Exit(1);
         }
+        var access = await WiFiAdapter.RequestAccessAsync();
+        if (access != WiFiAccessStatus.Allowed) {
+            _logger.LogError("no access to WiFiAdapter");
+            Environment.Exit(1);
+        }
+        string oldMessage = "";
         try {
             while (!stoppingToken.IsCancellationRequested) {
-                await Task.Run(() => WifiHelper.Switch(allowed), stoppingToken);
-                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                string message = await WifiHelper.Switch(allowed);
+                if (message != oldMessage) {
+                    _logger.LogInformation(message);
+                    oldMessage = message;
+                }
+                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
             }
         } catch (OperationCanceledException) {
             // When the stopping token is canceled, for example, a call made from services.msc,

@@ -7,7 +7,7 @@ internal class Program {
         {
             options.ServiceName = "Better WIFI Service";
         });
-        builder.Services.AddHostedService<WifiSwitchackgroundService>();
+        builder.Services.AddHostedService<WifiSwitchBackgroundService>();
         var host = builder.Build();
         host.Run();
     }

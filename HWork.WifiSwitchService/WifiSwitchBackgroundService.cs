@@ -2,12 +2,12 @@ using Windows.Devices.WiFi;
 
 namespace HWork.WifiSwitchService;
 
-public class WifiSwitchackgroundService : BackgroundService
+public class WifiSwitchBackgroundService : BackgroundService
 {
-    private readonly ILogger<WifiSwitchackgroundService> _logger;
+    private readonly ILogger<WifiSwitchBackgroundService> _logger;
     private readonly IConfiguration _configuration;
 
-    public WifiSwitchackgroundService(ILogger<WifiSwitchackgroundService> logger, IConfiguration configuration)
+    public WifiSwitchBackgroundService(ILogger<WifiSwitchBackgroundService> logger, IConfiguration configuration)
     {
         _logger = logger;
         _configuration = configuration;
